@@ -1,0 +1,31 @@
+curl http: //localhost:11434/api/chat -d '{
+"model": "llama3.1",
+"stream": false,
+"messages": [
+  {
+    "role": "user",
+    "content": "How are you doing?"
+  }
+],
+"tools": [
+  {
+    "type": "function",
+    "function": {
+      "name": "create_namespace",
+      "description": "Create a namespace in Kubernetes",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the namespace"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    }
+  }
+]
+}'
