@@ -7,11 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+
+	mcp_golang "github.com/metoro-io/mcp-golang"
+	mcp_golang_http "github.com/metoro-io/mcp-golang/transport/http"
 )
 
 const (
@@ -92,6 +96,35 @@ var (
 )
 
 func main() {
+	// Create an HTTP transport that connects to the server
+	transport := mcp_golang_http.NewHTTPClientTransport("/mcp")
+	transport.WithBaseURL("http://localhost:8080")
+
+	// Create a new client with the transport
+	client := mcp_golang.NewClient(transport)
+
+	// Initialize the client
+	_, err := client.Initialize(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to initialize client: %v", err)
+	}
+
+	// List available tools
+	tools, err := client.ListTools(context.Background(), nil)
+	if err != nil {
+		log.Fatalf("Failed to list tools: %v", err)
+	}
+
+	log.Println("Available Tools:")
+	for _, tool := range tools.Tools {
+		desc := ""
+		if tool.Description != nil {
+			desc = *tool.Description
+		}
+
+		log.Printf("Tool: %s. Description: %s", tool.Name, desc)
+	}
+
 	var (
 		k = NewKubernetesTool()
 
