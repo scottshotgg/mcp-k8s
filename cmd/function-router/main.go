@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,132 +17,79 @@ import (
 	mcp_golang_http "github.com/metoro-io/mcp-golang/transport/http"
 )
 
-const (
-	weatherTemplate = "The weather in %s is %d°C and partly cloudy."
-)
-
 var (
-	stream   bool
-	stdTools = []*Tools{
-		{
-			Type: "function",
-			Function: &Function{
-				Name:        "create_namespace",
-				Description: "Create a namespace in Kubernetes",
-				Parameters: &Parameters{
-					Type: "object",
-					Required: []string{
-						"name",
-					},
-					Properties: map[string]Property{
-						"name": {
-							Type:        "string",
-							Description: "Name of the namespace",
-						},
-					},
-				},
-			},
-		},
-		{
-			Type: "function",
-			Function: &Function{
-				Name:        "create_deployment",
-				Description: "Create a deployment on Kubernetes",
-				Parameters: &Parameters{
-					Type: "object",
-					Required: []string{
-						"name",
-						"image",
-						"namespace",
-					},
-					Properties: map[string]Property{
-						"name": {
-							Type:        "string",
-							Description: "Name of the deployment",
-						},
-						"image": {
-							Type:        "string",
-							Description: "Image to run",
-						},
-						"namespace": {
-							Type:        "string",
-							Description: "Namespace that the deployment should be in",
-						},
-					},
-				},
-			},
-		},
-		{
-			Type: "function",
-			Function: &Function{
-				Name:        "get_weather",
-				Description: "Get the current weather for a city",
-				Parameters: &Parameters{
-					Type: "object",
-					Required: []string{
-						"city_name",
-					},
-					Properties: map[string]Property{
-						"city_name": {
-							Type:        "string",
-							Description: "Name of the city",
-						},
-					},
-				},
-			},
-		},
+	// TODO: try to get streaming working
+	stream bool
+)
+
+type (
+	Router struct {
+		kubeMCPClient *mcp_golang.Client
+		tools         []*Tool
 	}
 )
 
-func main() {
-	// Create an HTTP transport that connects to the server
-	transport := mcp_golang_http.NewHTTPClientTransport("/mcp")
-	transport.WithBaseURL("http://localhost:8080")
-
-	// Create a new client with the transport
-	client := mcp_golang.NewClient(transport)
-
-	// Initialize the client
-	_, err := client.Initialize(context.Background())
-	if err != nil {
-		log.Fatalf("Failed to initialize client: %v", err)
-	}
-
+func (r *Router) fetchTools() {
 	// List available tools
-	tools, err := client.ListTools(context.Background(), nil)
+	var res, err = r.kubeMCPClient.ListTools(context.Background(), nil)
 	if err != nil {
 		log.Fatalf("Failed to list tools: %v", err)
 	}
 
-	log.Println("Available Tools:")
-	for _, tool := range tools.Tools {
-		desc := ""
-		if tool.Description != nil {
-			desc = *tool.Description
-		}
+	for _, tool := range res.Tools {
+		r.tools = append(r.tools, &Tool{
+			Type: "function",
+			Function: &Function{
+				Name:        tool.Name,
+				Description: description(tool.Description),
+				Parameters:  tool.InputSchema,
+			},
+		})
+	}
+}
 
-		log.Printf("Tool: %s. Description: %s", tool.Name, desc)
+func description(desc *string) string {
+	if desc != nil {
+		return *desc
 	}
 
-	var (
-		k = NewKubernetesTool()
+	return ""
+}
 
-		toolFns = map[string]ToolFn{
-			"create_deployment": k.CreateDeployment,
-			"create_namespace":  k.CreateNamespace,
-			"get_weather":       getWeather,
-		}
-
-		baseURI = os.Getenv("BASE_URI")
-	)
-
-	if baseURI == "" {
-		baseURI = "localhost"
+func main() {
+	var ollamaURI = os.Getenv("OLLAMA_URI")
+	if ollamaURI == "" {
+		ollamaURI = "localhost"
 	}
 
+	var kubeMCPURI = os.Getenv("KUBE_MCP_URI")
+	if kubeMCPURI == "" {
+		kubeMCPURI = "localhost"
+	}
+
+	// Create an HTTP transport that connects to the server
+	var transport = mcp_golang_http.NewHTTPClientTransport("/mcp")
+	transport.WithBaseURL(fmt.Sprintf("http://%s:8080", kubeMCPURI))
+
+	// Create a new client with the transport
+	var k8sMCPClient = mcp_golang.NewClient(transport)
+
+	// Initialize the client
+	_, err := k8sMCPClient.Initialize(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to initialize client: %v", err)
+	}
+
+	// TODO: make a new func
+	var router = Router{
+		kubeMCPClient: k8sMCPClient,
+	}
+
+	router.fetchTools()
+
 	var (
-		u       = fmt.Sprintf("http://%s:11434/api/chat", baseURI)
-		scanner = bufio.NewScanner(os.Stdin)
+		ollamaChatURL = fmt.Sprintf("http://%s:11434/api/chat", ollamaURI)
+		scanner       = bufio.NewScanner(os.Stdin)
 	)
 
 	fmt.Println("Ask me anything:")
@@ -171,10 +117,10 @@ func main() {
 			continue
 
 		case strings.HasPrefix(text, "cmd::"):
-			output = command(text)
+			output = router.command(text)
 
 		default:
-			output, err = loop(text, u, toolFns)
+			output, err = router.loop(text, ollamaChatURL, k8sMCPClient)
 			if err != nil {
 				fmt.Printf("!!! %s !!!", output)
 				continue
@@ -201,12 +147,17 @@ func main() {
 	}
 }
 
-func command(text string) string {
+func (r *Router) command(text string) string {
 	text = strings.TrimPrefix(text, "cmd::")
 	switch text {
 	case "exit":
 		fmt.Println("# exiting!")
 		os.Exit(0)
+
+	case "tools":
+		r.tools = []*Tool{}
+		r.fetchTools()
+		return "# reloaded tools"
 
 	case "stream":
 		stream = !stream
@@ -219,7 +170,7 @@ func command(text string) string {
 	return "# im not supposed to be here"
 }
 
-func loop(text, u string, toolFns map[string]ToolFn) (string, error) {
+func (r *Router) loop(text, u string, k8sMCPClient *mcp_golang.Client) (string, error) {
 	var (
 		prompt = Message{
 			Role:    "system",
@@ -232,9 +183,9 @@ func loop(text, u string, toolFns map[string]ToolFn) (string, error) {
 		}
 
 		req = LLMRequest{
-			Model:  "qwen3:4b",
+			Model:  "qwen3:14b",
 			Stream: stream,
-			Tools:  stdTools,
+			Tools:  r.tools,
 			Messages: []*Message{
 				&prompt,
 				&initMsg,
@@ -293,20 +244,39 @@ func loop(text, u string, toolFns map[string]ToolFn) (string, error) {
 		// fmt.Println("Name:", toolCall.Function.Name)
 		// fmt.Println("Arguments:", toolCall.Function.Arguments)
 
-		var fn, ok = toolFns[toolCall.Function.Name]
-		if !ok {
-			return "", errors.New("fn not found")
-		}
+		// var fn, ok = toolFns[toolCall.Function.Name]
+		// if !ok {
+		// 	return "", errors.New("fn not found")
+		// }
 
-		if fn == nil {
-			return "", errors.New("fn was nil")
-		}
+		// if fn == nil {
+		// 	return "", errors.New("fn was nil")
+		// }
 
-		toolCall.ID = strconv.Itoa(k)
-		output, err := fn(ctx, toolCall.Function.Arguments)
+		res, err := k8sMCPClient.CallTool(ctx, toolCall.Function.Name, toolCall.Function.Arguments)
 		if err != nil {
 			return "", err
 		}
+
+		if len(res.Content) == 0 {
+			fmt.Println("res.Content == 0")
+			continue
+		}
+
+		var output string
+		// TODO: handle multiple messages coming back later
+		switch res.Content[0].Type {
+		case mcp_golang.ContentTypeText:
+			output = res.Content[0].TextContent.Text
+
+			// TODO: implement other cases later
+
+		default:
+			fmt.Println("default content type somehow?")
+			continue
+		}
+
+		toolCall.ID = strconv.Itoa(k)
 
 		messages = append(messages, []*Message{
 			{
@@ -331,7 +301,7 @@ func loop(text, u string, toolFns map[string]ToolFn) (string, error) {
 	}
 
 	var llmResp = LLMRequest{
-		Model:    "qwen3:4b",
+		Model:    "qwen3:14b",
 		Stream:   stream,
 		Messages: messages,
 	}
@@ -355,15 +325,4 @@ func loop(text, u string, toolFns map[string]ToolFn) (string, error) {
 	}
 
 	return res2.Message.Content, nil
-}
-
-func getWeather(ctx context.Context, args map[string]string) (string, error) {
-	// fmt.Printf("args: %+v\n", args)
-
-	var cityName, ok = args["city_name"]
-	if !ok {
-		return "", errors.New("city_name was not found")
-	}
-
-	return fmt.Sprintf(weatherTemplate, cityName, rand.Intn(15)+10), nil
 }

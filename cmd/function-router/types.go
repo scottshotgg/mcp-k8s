@@ -20,10 +20,11 @@ type LLMResponse struct {
 }
 
 type Function struct {
-	Name        string            `json:"name,omitempty"`
-	Description string            `json:"description,omitempty"`
-	Parameters  *Parameters       `json:"parameters,omitempty"`
-	Arguments   map[string]string `json:"arguments,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	// Parameters  *Parameters       `json:"parameters,omitempty"`
+	Parameters interface{}       `json:"parameters,omitempty"`
+	Arguments  map[string]string `json:"arguments,omitempty"`
 }
 
 type ToolCalls struct {
@@ -43,7 +44,7 @@ type LLMRequest struct {
 	Model    string     `json:"model,omitempty"`
 	Stream   bool       `json:"stream"`
 	Messages []*Message `json:"messages,omitempty"`
-	Tools    []*Tools   `json:"tools,omitempty"`
+	Tools    []*Tool    `json:"tools,omitempty"`
 }
 
 type Property struct {
@@ -57,7 +58,7 @@ type Parameters struct {
 	Required   []string            `json:"required,omitempty"`
 }
 
-type Tools struct {
+type Tool struct {
 	Type     string    `json:"type,omitempty"`
 	Function *Function `json:"function,omitempty"`
 }
