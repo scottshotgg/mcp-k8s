@@ -24,14 +24,16 @@ var (
 
 type (
 	Router struct {
-		kubeMCPClient *mcp_golang.Client
+		client        *mcp_golang.Client
 		tools         []*Tool
+		ollamaChatURL string
+		model         string
 	}
 )
 
 func (r *Router) fetchTools() {
 	// List available tools
-	var res, err = r.kubeMCPClient.ListTools(context.Background(), nil)
+	var res, err = r.client.ListTools(context.Background(), nil)
 	if err != nil {
 		log.Fatalf("Failed to list tools: %v", err)
 	}
@@ -56,17 +58,7 @@ func description(desc *string) string {
 	return ""
 }
 
-func main() {
-	var ollamaURI = os.Getenv("OLLAMA_URI")
-	if ollamaURI == "" {
-		ollamaURI = "localhost"
-	}
-
-	var kubeMCPURI = os.Getenv("KUBE_MCP_URI")
-	if kubeMCPURI == "" {
-		kubeMCPURI = "localhost"
-	}
-
+func NewRouter(model, ollamaURI, kubeMCPURI string) (*Router, error) {
 	// Create an HTTP transport that connects to the server
 	var transport = mcp_golang_http.NewHTTPClientTransport("/mcp")
 	transport.WithBaseURL(fmt.Sprintf("http://%s:8080", kubeMCPURI))
@@ -82,15 +74,41 @@ func main() {
 
 	// TODO: make a new func
 	var router = Router{
-		kubeMCPClient: k8sMCPClient,
+		client:        k8sMCPClient,
+		ollamaChatURL: fmt.Sprintf("http://%s:11434/api/chat", ollamaURI),
+		model:         model,
 	}
 
 	router.fetchTools()
 
+	return &router, nil
+}
+
+func main() {
+	// TODO: turn this into a config file with a config pkg later on
+	var ollamaURI = os.Getenv("OLLAMA_URI")
+	if ollamaURI == "" {
+		ollamaURI = "localhost"
+	}
+
+	var kubeMCPURI = os.Getenv("KUBE_MCP_URI")
+	if kubeMCPURI == "" {
+		kubeMCPURI = "localhost"
+	}
+
+	var model = os.Getenv("MODEL")
+	if model == "" {
+		panic("MODEL not provided")
+	}
+
 	var (
-		ollamaChatURL = fmt.Sprintf("http://%s:11434/api/chat", ollamaURI)
-		scanner       = bufio.NewScanner(os.Stdin)
+		router, err = NewRouter(model, ollamaURI, kubeMCPURI)
+		scanner     = bufio.NewScanner(os.Stdin)
 	)
+
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println("Ask me anything:")
 	for {
@@ -120,7 +138,7 @@ func main() {
 			output = router.command(text)
 
 		default:
-			output, err = router.loop(text, ollamaChatURL, k8sMCPClient)
+			output, err = router.loop(text)
 			if err != nil {
 				fmt.Printf("!!! %s !!!", output)
 				continue
@@ -170,7 +188,7 @@ func (r *Router) command(text string) string {
 	return "# im not supposed to be here"
 }
 
-func (r *Router) loop(text, u string, k8sMCPClient *mcp_golang.Client) (string, error) {
+func (r *Router) loop(text string) (string, error) {
 	var (
 		prompt = Message{
 			Role:    "system",
@@ -183,7 +201,7 @@ func (r *Router) loop(text, u string, k8sMCPClient *mcp_golang.Client) (string, 
 		}
 
 		req = LLMRequest{
-			Model:  "qwen3:14b",
+			Model:  r.model,
 			Stream: stream,
 			Tools:  r.tools,
 			Messages: []*Message{
@@ -201,7 +219,7 @@ func (r *Router) loop(text, u string, k8sMCPClient *mcp_golang.Client) (string, 
 
 	// fmt.Println("b:", string(b))
 
-	resp, err := http.Post(u, "application/json", bytes.NewBuffer(b))
+	resp, err := http.Post(r.ollamaChatURL, "application/json", bytes.NewBuffer(b))
 	if err != nil {
 		return "", err
 	}
@@ -253,7 +271,7 @@ func (r *Router) loop(text, u string, k8sMCPClient *mcp_golang.Client) (string, 
 		// 	return "", errors.New("fn was nil")
 		// }
 
-		res, err := k8sMCPClient.CallTool(ctx, toolCall.Function.Name, toolCall.Function.Arguments)
+		res, err := r.client.CallTool(ctx, toolCall.Function.Name, toolCall.Function.Arguments)
 		if err != nil {
 			return "", err
 		}
@@ -301,7 +319,7 @@ func (r *Router) loop(text, u string, k8sMCPClient *mcp_golang.Client) (string, 
 	}
 
 	var llmResp = LLMRequest{
-		Model:    "qwen3:14b",
+		Model:    r.model,
 		Stream:   stream,
 		Messages: messages,
 	}
@@ -311,7 +329,7 @@ func (r *Router) loop(text, u string, k8sMCPClient *mcp_golang.Client) (string, 
 		return "", err
 	}
 
-	resp, err = http.Post(u, "application/json", bytes.NewBuffer(bb))
+	resp, err = http.Post(r.ollamaChatURL, "application/json", bytes.NewBuffer(bb))
 	if err != nil {
 		return "", err
 	}

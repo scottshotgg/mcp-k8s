@@ -29,6 +29,8 @@ func main() {
 		panic(err)
 	}
 
+	// server.RegisterResource()
+
 	fmt.Println("started!")
 
 	err = server.Serve()
