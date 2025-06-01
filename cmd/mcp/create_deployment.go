@@ -18,7 +18,8 @@ type CreateDeploymentArgs struct {
 
 func (k *KubernetesTool) CreateDeployment(ctx context.Context, args CreateDeploymentArgs) (*mcp_golang.ToolResponse, error) {
 	var (
-		opts   = metav1.CreateOptions{}
+		opts metav1.CreateOptions
+
 		labels = map[string]string{
 			"app": args.Name,
 		}

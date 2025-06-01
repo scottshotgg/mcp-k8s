@@ -23,8 +23,32 @@ func main() {
 		panic(err)
 	}
 
+	// Register delete_namespace
+	err = server.RegisterTool("delete_namespace", "Remove or delete an existing namespace in Kubernetes", k.DeleteNamespace)
+	if err != nil {
+		panic(err)
+	}
+
+	// Register list_namespaces
+	err = server.RegisterTool("list_namespaces", "List all accessible existing namespaces in Kubernetes", k.ListNamespaces)
+	if err != nil {
+		panic(err)
+	}
+
 	// Register create_deployment
 	err = server.RegisterTool("create_deployment", "Create a deployment in Kubernetes", k.CreateDeployment)
+	if err != nil {
+		panic(err)
+	}
+
+	// Register delete_deployment
+	err = server.RegisterTool("delete_deployment", "Remove or delete an existing deployment in Kubernetes", k.DeleteDeployment)
+	if err != nil {
+		panic(err)
+	}
+
+	// Register list_deployments
+	err = server.RegisterTool("list_deployments", "List all deployments for a particular namespace in Kubernetes", k.ListDeployments)
 	if err != nil {
 		panic(err)
 	}

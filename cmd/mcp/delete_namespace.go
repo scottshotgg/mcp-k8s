@@ -5,28 +5,21 @@ import (
 	"fmt"
 
 	mcp_golang "github.com/metoro-io/mcp-golang"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type CreateNamespaceArgs struct {
+type DeleteNamespaceArgs struct {
 	Name string `json:"name" jsonschema:"required,description=Name of the namespace"`
 }
 
-func (k *KubernetesTool) CreateNamespace(ctx context.Context, args CreateNamespaceArgs) (*mcp_golang.ToolResponse, error) {
+func (k *KubernetesTool) DeleteNamespace(ctx context.Context, args DeleteNamespaceArgs) (*mcp_golang.ToolResponse, error) {
 	var (
-		opts metav1.CreateOptions
+		opts metav1.DeleteOptions
 
-		k8sNS = &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: args.Name,
-			},
-		}
-
-		_, err = k.client.
+		err = k.client.
 			CoreV1().
 			Namespaces().
-			Create(ctx, k8sNS, opts)
+			Delete(ctx, args.Name, opts)
 	)
 
 	if err != nil {
@@ -38,7 +31,7 @@ func (k *KubernetesTool) CreateNamespace(ctx context.Context, args CreateNamespa
 			{
 				Type: mcp_golang.ContentTypeText,
 				TextContent: &mcp_golang.TextContent{
-					Text: fmt.Sprintf("Your Kubernetes namespace (%s) has been created", args.Name),
+					Text: fmt.Sprintf("Your Kubernetes namespace (%s) has been deleted", args.Name),
 				},
 			},
 		},
