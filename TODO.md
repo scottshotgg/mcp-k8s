@@ -1,5 +1,17 @@
 # TODO
 
+- More functionality
+  - add getting a deployment
+  - Listing pods
+  - exposing a deployment / creating a service
+  - autoscaling a deployment / creating an hpa
+  - creating a job
+  - running a job
+  - listing nodes
+  - getting a node
+  - top pods
+  - top nodes
+
 - Config
   - json file
   - pkg
