@@ -28,6 +28,8 @@ type (
 		tools         []*Tool
 		ollamaChatURL string
 		model         string
+
+		messages []*Message
 	}
 )
 
@@ -72,12 +74,22 @@ func NewRouter(model, ollamaURI, kubeMCPURI string) (*Router, error) {
 		log.Fatalf("Failed to initialize client: %v", err)
 	}
 
-	// TODO: make a new func
-	var router = Router{
-		client:        k8sMCPClient,
-		ollamaChatURL: fmt.Sprintf("http://%s:11434/api/chat", ollamaURI),
-		model:         model,
-	}
+	var (
+		prompt = Message{
+			Role:    "system",
+			Content: "You are a helpful assistant. Never call tools unless absolutely necessary. Respond in plain language when possible.",
+		}
+
+		router = Router{
+			client:        k8sMCPClient,
+			ollamaChatURL: fmt.Sprintf("http://%s:11434/api/chat", ollamaURI),
+			model:         model,
+
+			messages: []*Message{
+				&prompt,
+			},
+		}
+	)
 
 	router.fetchTools()
 
@@ -140,7 +152,7 @@ func main() {
 		default:
 			output, err = router.loop(text)
 			if err != nil {
-				fmt.Printf("!!! %s !!!", output)
+				fmt.Printf("!!! %s !!!", err)
 				continue
 			}
 
@@ -190,24 +202,22 @@ func (r *Router) command(text string) string {
 
 func (r *Router) loop(text string) (string, error) {
 	var (
-		prompt = Message{
-			Role:    "system",
-			Content: "You are a helpful assistant. Never call tools unless absolutely necessary. Respond in plain language when possible.",
-		}
-
 		initMsg = Message{
 			Role:    "user",
 			Content: text,
 		}
+	)
 
+	// TODO: we are going to need to measure the context length at some point
+	// and then we can start to either trim this or maybe summarize it in the background
+	r.messages = append(r.messages, &initMsg)
+
+	var (
 		req = LLMRequest{
-			Model:  r.model,
-			Stream: stream,
-			Tools:  r.tools,
-			Messages: []*Message{
-				&prompt,
-				&initMsg,
-			},
+			Model:    r.model,
+			Stream:   stream,
+			Tools:    r.tools,
+			Messages: r.messages,
 		}
 
 		b, err = json.Marshal(req)
@@ -248,10 +258,6 @@ func (r *Router) loop(text string) (string, error) {
 
 	if len(res.Message.ToolCalls) == 0 {
 		return res.Message.Content, nil
-	}
-
-	var messages = []*Message{
-		&initMsg,
 	}
 
 	// TODO: tie this into the request and stuff as well
@@ -296,7 +302,9 @@ func (r *Router) loop(text string) (string, error) {
 
 		toolCall.ID = strconv.Itoa(k)
 
-		messages = append(messages, []*Message{
+		// TODO: we are going to need to measure the context length at some point
+		// and then we can start to either trim this or maybe summarize it in the background
+		r.messages = append(r.messages, []*Message{
 			{
 				Role: "assistant",
 				// ToolCalls: []*ToolCalls{
@@ -321,7 +329,7 @@ func (r *Router) loop(text string) (string, error) {
 	var llmResp = LLMRequest{
 		Model:    r.model,
 		Stream:   stream,
-		Messages: messages,
+		Messages: r.messages,
 	}
 
 	bb, err := json.Marshal(llmResp)

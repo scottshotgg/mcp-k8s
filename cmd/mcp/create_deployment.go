@@ -11,8 +11,8 @@ import (
 )
 
 type CreateDeploymentArgs struct {
-	Name      string `json:"name" jsonschema:"required,description=Name of the namespace"`
-	Image     string `json:"image" jsonschema:"required,description=Image to run"`
+	Name      string `json:"name" jsonschema:"required,description=Name of the deployment"`
+	Image     string `json:"image" jsonschema:"required,description=Container image that the deployment should run"`
 	Namespace string `json:"namespace" jsonschema:"required,description=Namespace that the deployment should be deployed into in"`
 }
 

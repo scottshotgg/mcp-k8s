@@ -17,6 +17,8 @@ func main() {
 
 	var server = mcp_golang.NewServer(transport)
 
+	// --- namespace commands ---
+
 	// Register create_namespace
 	var err = server.RegisterTool("create_namespace", "Create a namespace in Kubernetes", k.CreateNamespace)
 	if err != nil {
@@ -35,6 +37,14 @@ func main() {
 		panic(err)
 	}
 
+	// Register get_namespace
+	err = server.RegisterTool("get_namespace", "Get details for a particular namespace in Kubernetes", k.GetNamespace)
+	if err != nil {
+		panic(err)
+	}
+
+	// --- deployment commands ---
+
 	// Register create_deployment
 	err = server.RegisterTool("create_deployment", "Create a deployment in Kubernetes", k.CreateDeployment)
 	if err != nil {
@@ -47,13 +57,19 @@ func main() {
 		panic(err)
 	}
 
+	// Register get_deployment
+	err = server.RegisterTool("get_deployment", "Get details for a particular deployment in a particular namespace in Kubernetes", k.GetDeployment)
+	if err != nil {
+		panic(err)
+	}
+
 	// Register list_deployments
 	err = server.RegisterTool("list_deployments", "List all deployments for a particular namespace in Kubernetes", k.ListDeployments)
 	if err != nil {
 		panic(err)
 	}
 
-	// server.RegisterResource()
+	// server.RegisterResourcse()
 
 	fmt.Println("started!")
 
