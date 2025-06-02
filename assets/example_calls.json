@@ -1,0 +1,82 @@
+[
+  {
+    "model": "qwen3:4b",
+    "stream": false,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Can you create a namespace called something and check the weather in London for me?"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "create_namespace",
+          "description": "Create a namespace in Kubernetes",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the namespace"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "Get current weather for a city",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "City name"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "model": "qwen3:4b",
+    "stream": false,
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather in Paris?"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "tool1",
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "arguments": {
+                "location": "Paris"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "tool1",
+        "content": "The weather in Paris is 18°C and partly cloudy."
+      }
+    ]
+  }
+]
