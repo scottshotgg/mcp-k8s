@@ -6,6 +6,7 @@ import (
 
 type LLMResponse struct {
 	Model              string    `json:"model,omitempty"`
+	Error              string    `json:"error"`
 	Stream             bool      `json:"stream,omitempty"`
 	CreatedAt          time.Time `json:"created_at,omitempty"`
 	Message            *Message  `json:"message,omitempty"`

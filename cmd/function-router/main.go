@@ -152,8 +152,7 @@ func main() {
 		default:
 			output, err = router.loop(text)
 			if err != nil {
-				fmt.Printf("!!! %s !!!", err)
-				continue
+				output = fmt.Sprintf("!!! %s !!!", err)
 			}
 
 			// TODO: or better yet make a struct that unmarshals this into a 'think'/'thought' field
@@ -287,8 +286,12 @@ func (r *Router) loop(text string) (string, error) {
 	// TODO: make a command to enable debugging which will print this stuff out
 	// fmt.Printf("res: %+v\n", res)
 
+	if res.Error != "" {
+		return "", errors.New(res.Error)
+	}
+
 	if res.Message == nil {
-		return "", errors.New("res was nil")
+		return "", fmt.Errorf("no message sent back for some reason: %+v", res)
 	}
 
 	res.Message.Content = trimOutput(res.Message.Content)
