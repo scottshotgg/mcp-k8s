@@ -258,7 +258,7 @@ func (r *Router) command(text string) string {
 			// TODO:
 		}
 
-		if r.messages[0].Content == "/no_think" {
+		if len(r.messages) > 0 && r.messages[0].Content == "/no_think" {
 			r.messages = r.messages[1:]
 		}
 
@@ -372,36 +372,42 @@ func (r *Router) loop(text string) (string, error) {
 			continue
 		}
 
-		var output string
-		// TODO: handle multiple messages coming back later
-		switch toolRes.Content[0].Type {
-		case mcp_golang.ContentTypeText:
-			output = toolRes.Content[0].TextContent.Text
-
-			// TODO: implement other cases later
-
-		default:
-			fmt.Println("default content type somehow?")
-			continue
-		}
-
-		toolCall.ID = strconv.Itoa(k)
-
-		// TODO: we are going to need to measure the context length at some point
-		// and then we can start to either trim this or maybe summarize it in the background
-		r.messages = append(r.messages, []*Message{
+		var toolOutputs = []*Message{
 			{
 				Role: "assistant",
 				ToolCalls: []*ToolCalls{
 					toolCall,
 				},
 			},
-			{
-				Role:       "tool",
-				ToolCallID: toolCall.ID,
-				Content:    output,
-			},
-		}...)
+		}
+
+		toolCall.ID = strconv.Itoa(k)
+
+		for _, content := range toolRes.Content {
+			switch content.Type {
+			case mcp_golang.ContentTypeText:
+				toolOutputs = append(toolOutputs, &Message{
+					Role:       "tool",
+					ToolCallID: toolCall.ID,
+					// TODO: need to figure out how to handle other types?
+					Content: content.TextContent.Text,
+				})
+
+			// TODO: handle these other types
+			case mcp_golang.ContentTypeImage:
+				return "", errors.New("Images type content is not supported")
+
+			case mcp_golang.ContentTypeEmbeddedResource:
+				return "", errors.New("EmbeddedResource type content is not supported")
+
+			default:
+				return "", fmt.Errorf("default content type somehow?: %+v\n", content)
+			}
+		}
+
+		// TODO: we are going to need to measure the context length at some point
+		// and then we can start to either trim this or maybe summarize it in the background
+		r.messages = append(r.messages, toolOutputs...)
 	}
 
 	var llmResp = LLMRequest{

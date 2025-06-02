@@ -10,9 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type TopNodesArgs struct {
-	Name string `json:"name" jsonschema:"required,description=Name of the namespace"`
-}
+type TopNodesArgs struct{}
 
 // kubectl get --raw /apis/metrics.k8s.io/v1beta1/nodes
 func (k *KubernetesTool) TopNodes(ctx context.Context, args TopNodesArgs) (*mcp_golang.ToolResponse, error) {
