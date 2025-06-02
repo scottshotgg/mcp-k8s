@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	mcp_golang "github.com/metoro-io/mcp-golang"
 	corev1 "k8s.io/api/core/v1"
@@ -26,13 +25,6 @@ func (k *KubernetesTool) TopNodes(ctx context.Context, args TopNodesArgs) (*mcp_
 
 	var metrics = map[string]corev1.ResourceList{}
 	for _, m := range metricsList.Items {
-		b, err := json.Marshal(m)
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Printf("b: %s\n\n", string(b))
-
 		metrics[m.Name] = m.Usage
 	}
 
