@@ -43,6 +43,12 @@ func NewKubernetesTool() *KubernetesTool {
 		panic(err.Error())
 	}
 
+	// Create a metrics client
+	metricsClient, err := versioned.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("Failed to create metrics client: %v", err)
+	}
+
 	configClone := *config // copy the original
 	configClone.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{
 		CodecFactory: scheme.Codecs,
@@ -53,17 +59,10 @@ func NewKubernetesTool() *KubernetesTool {
 		Version: "v1",
 	}
 
-	// 2025/06/02 16:23:49 Error creating REST client: GroupVersion is required when initializing a RESTClient
 	// Create a REST client
 	restClient, err := rest.RESTClientFor(&configClone)
 	if err != nil {
 		log.Fatalf("Error creating REST client: %v", err)
-	}
-
-	// Create a metrics client
-	metricsClient, err := versioned.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("Failed to create metrics client: %v", err)
 	}
 
 	return &KubernetesTool{

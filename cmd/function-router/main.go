@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -33,11 +32,11 @@ type (
 	}
 )
 
-func (r *Router) fetchTools() {
+func (r *Router) fetchTools(ctx context.Context) error {
 	// List available tools
-	var res, err = r.client.ListTools(context.Background(), nil)
+	var res, err = r.client.ListTools(ctx, nil)
 	if err != nil {
-		log.Fatalf("Failed to list tools: %v", err)
+		return err
 	}
 
 	for _, tool := range res.Tools {
@@ -50,6 +49,34 @@ func (r *Router) fetchTools() {
 			},
 		})
 	}
+
+	return nil
+}
+
+func (r *Router) fetchResources(ctx context.Context) error {
+	// List available tools
+	var res, err = r.client.ListResources(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("res: %+v\n", res)
+
+	for _, resource := range res.Resources {
+		readRes, err := r.client.ReadResource(ctx, resource.Uri)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("resource: %+v\n", resource)
+		fmt.Printf("readRes: %+v\n", readRes.Contents)
+		for _, content := range readRes.Contents {
+			// TODO: could we somehow offer templates as resources that can be used to apply into kubernetes?
+			fmt.Printf("content: %+v\n", content.TextResourceContents.Text)
+		}
+	}
+
+	return nil
 }
 
 func description(desc *string) string {
@@ -71,7 +98,7 @@ func NewRouter(model, ollamaURI, kubeMCPURI string) (*Router, error) {
 	// Initialize the client
 	_, err := k8sMCPClient.Initialize(context.Background())
 	if err != nil {
-		log.Fatalf("Failed to initialize client: %v", err)
+		return nil, err
 	}
 
 	var (
@@ -91,7 +118,18 @@ func NewRouter(model, ollamaURI, kubeMCPURI string) (*Router, error) {
 		}
 	)
 
-	router.fetchTools()
+	// TODO:
+	var ctx = context.TODO()
+
+	err = router.fetchTools(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// err = router.fetchResources(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &router, nil
 }
@@ -187,7 +225,12 @@ func (r *Router) command(text string) string {
 
 	case "tools":
 		r.tools = []*Tool{}
-		r.fetchTools()
+		// TODO:
+		var err = r.fetchTools(context.TODO())
+		if err != nil {
+			return err.Error()
+		}
+
 		return "# reloaded tools"
 
 	case "stream":

@@ -77,7 +77,16 @@ func main() {
 		panic(err)
 	}
 
-	// server.RegisterResourcse()
+	// Register a resource
+	err = server.RegisterResource("test://resource", "Resource Name", "This is a test resource", "application/json", func() (*mcp_golang.ResourceResponse, error) {
+		// Define the resource content
+		content := mcp_golang.NewTextEmbeddedResource("test://resource", "This is a test resource", "application/json")
+		return mcp_golang.NewResourceResponse(content), nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println("started!")
 
