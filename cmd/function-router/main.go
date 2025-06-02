@@ -156,25 +156,27 @@ func main() {
 				continue
 			}
 
-			// TODO: try turing on 'no think'
 			// TODO: or better yet make a struct that unmarshals this into a 'think'/'thought' field
 			// and allow that to be printable with a command
-			var split = strings.Split(output, "</think>")
-			switch len(split) {
-			case 2:
-				output = split[1]
-
-			case 1:
-
-			default:
-				fmt.Println("something is wrong here ... :", output)
-			}
-
-			output = strings.TrimSpace(output)
 		}
 
 		fmt.Printf("\n%s\n", output)
 	}
+}
+
+func trimOutput(output string) string {
+	var split = strings.Split(output, "</think>")
+	switch len(split) {
+	case 2:
+		output = split[1]
+
+	case 1:
+
+	default:
+		fmt.Println("something is wrong here ... :", output)
+	}
+
+	return strings.TrimSpace(output)
 }
 
 func (r *Router) command(text string) string {
@@ -192,6 +194,33 @@ func (r *Router) command(text string) string {
 	case "stream":
 		stream = !stream
 		return "# streaming enabled"
+
+	case "nothink":
+		if len(r.messages) == 0 {
+			// TODO:
+		}
+
+		if r.messages[0].Content != "/no_think" {
+			r.messages = append([]*Message{
+				{
+					Role:    "system",
+					Content: "/no_think",
+				},
+			}, r.messages...)
+		}
+
+		return "# thinking disabled"
+
+	case "think":
+		if len(r.messages) == 0 {
+			// TODO:
+		}
+
+		if r.messages[0].Content == "/no_think" {
+			r.messages = r.messages[1:]
+		}
+
+		return "# thinking enabled"
 
 	default:
 		return fmt.Sprintf("# unrecognized command: `%s`\n", text)
@@ -211,6 +240,11 @@ func (r *Router) loop(text string) (string, error) {
 	// TODO: we are going to need to measure the context length at some point
 	// and then we can start to either trim this or maybe summarize it in the background
 	r.messages = append(r.messages, &initMsg)
+
+	// TODO: make a command to enable debugging which will print this stuff out
+	// for _, message := range r.messages {
+	// 	fmt.Println("MESSAGE:", message)
+	// }
 
 	var (
 		req = LLMRequest{
@@ -250,12 +284,17 @@ func (r *Router) loop(text string) (string, error) {
 		return "", err
 	}
 
+	// TODO: make a command to enable debugging which will print this stuff out
 	// fmt.Printf("res: %+v\n", res)
 
 	if res.Message == nil {
 		return "", errors.New("res was nil")
 	}
 
+	res.Message.Content = trimOutput(res.Message.Content)
+	r.messages = append(r.messages, res.Message)
+
+	// TODO: do we need to append the toolsCalls to the context?
 	if len(res.Message.ToolCalls) == 0 {
 		return res.Message.Content, nil
 	}
@@ -277,21 +316,21 @@ func (r *Router) loop(text string) (string, error) {
 		// 	return "", errors.New("fn was nil")
 		// }
 
-		res, err := r.client.CallTool(ctx, toolCall.Function.Name, toolCall.Function.Arguments)
+		toolRes, err := r.client.CallTool(ctx, toolCall.Function.Name, toolCall.Function.Arguments)
 		if err != nil {
 			return "", err
 		}
 
-		if len(res.Content) == 0 {
+		if len(toolRes.Content) == 0 {
 			fmt.Println("res.Content == 0")
 			continue
 		}
 
 		var output string
 		// TODO: handle multiple messages coming back later
-		switch res.Content[0].Type {
+		switch toolRes.Content[0].Type {
 		case mcp_golang.ContentTypeText:
-			output = res.Content[0].TextContent.Text
+			output = toolRes.Content[0].TextContent.Text
 
 			// TODO: implement other cases later
 
@@ -307,13 +346,6 @@ func (r *Router) loop(text string) (string, error) {
 		r.messages = append(r.messages, []*Message{
 			{
 				Role: "assistant",
-				// ToolCalls: []*ToolCalls{
-				// 	{
-				// 		ID:       strconv.Itoa(k),
-				// 		Type:     "function",
-				// 		Function: toolCall.Function,
-				// 	},
-				// },
 				ToolCalls: []*ToolCalls{
 					toolCall,
 				},
@@ -350,5 +382,5 @@ func (r *Router) loop(text string) (string, error) {
 		return "", err
 	}
 
-	return res2.Message.Content, nil
+	return trimOutput(res2.Message.Content), nil
 }

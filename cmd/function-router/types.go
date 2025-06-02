@@ -41,6 +41,8 @@ type Message struct {
 }
 
 type LLMRequest struct {
+	// TODO: not sure how that works
+	// EnableThinking bool       `json:"enable_thinking,omitempty"`
 	Model    string     `json:"model,omitempty"`
 	Stream   bool       `json:"stream"`
 	Messages []*Message `json:"messages,omitempty"`
