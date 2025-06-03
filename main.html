@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ollama-style Chat</title>
+  <style>
+    /* Base reset and layout */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #chatWrapper {
+      max-width: 800px;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      background-color: #1e1e1e;
+    }
+
+    .message {
+      white-space: pre-wrap;
+      padding: 0.75rem;
+      border-radius: 10px;
+      max-width: 75%;
+      line-height: 1.5;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .user {
+      align-self: flex-end;
+      background-color: #2f80ed;
+      color: white;
+    }
+
+    .assistant {
+      align-self: flex-start;
+      background-color: #2a2a2a;
+      color: #dcdcdc;
+    }
+
+    #inputBar {
+      display: flex;
+      padding: 0.5rem 1rem;
+      background-color: #121212;
+      border-top: 1px solid #333;
+    }
+
+    #userInput {
+      flex: 1;
+      padding: 0.8rem;
+      font-size: 1rem;
+      background: #2a2a2a;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-family: inherit;
+    }
+
+    #userInput:focus {
+      outline: 2px solid #2f80ed;
+    }
+
+    #sendButton {
+      padding: 0.8rem 1.2rem;
+      margin-left: 0.75rem;
+      font-size: 1rem;
+      background-color: #2f80ed;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s ease;
+    }
+
+    #sendButton:hover {
+      background-color: #1366d6;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="chatWrapper">
+    <div id="chat"></div>
+
+    <div id="inputBar">
+      <input type="text" id="userInput" placeholder="Type your message..." autocomplete="off" />
+      <button id="sendButton">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const userInput = document.getElementById('userInput');
+    const sendButton = document.getElementById('sendButton');
+
+    const messages = [];
+
+    function addMessage(role, content) {
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.textContent = content;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const content = userInput.value.trim();
+      if (!content) return;
+
+      addMessage('user', content);
+      messages.push({ role: 'user', content });
+      userInput.value = '';
+
+      console.log("content:", content)
+
+      try {
+        const response = await fetch('http://localhost:9090/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: content })
+        });
+
+        const data = await response.json();
+        const reply = data.text;
+
+        addMessage('assistant', reply);
+        messages.push({ role: 'assistant', content: reply });
+      } catch (error) {
+        console.error('Error:', error);
+        addMessage('assistant', '[Error communicating with server]');
+      }
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+    userInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+
+</body>
+</html>

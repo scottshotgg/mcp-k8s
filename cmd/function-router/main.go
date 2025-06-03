@@ -79,6 +79,63 @@ func (r *Router) fetchResources(ctx context.Context) error {
 	return nil
 }
 
+type ChatReq struct {
+	Text string `json:"text"`
+}
+
+type ChatRes struct {
+	Text string `json:"text"`
+}
+
+func chatHandler(router *Router) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Add("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(200)
+			return
+		}
+
+		var (
+			req ChatReq
+			res ChatRes
+		)
+		// 	bodyBytes, err = io.ReadAll(r.Body)
+		// )
+
+		// if err != nil {
+		// 	fmt.Println("WOAH THERE WAS AN ERROR 0:", err)
+		// 	return
+		// }
+
+		// err = json.Unmarshal(bodyBytes, &req)
+		var err = json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			fmt.Println("WOAH THERE WAS AN ERROR 1:", err)
+			return
+		}
+
+		res.Text = router.handleText(req.Text)
+
+		b, err := json.Marshal(&res)
+		if err != nil {
+			fmt.Println("WOAH THERE WAS AN ERROR 3:", err)
+			return
+		}
+
+		w.Write(b)
+	}
+}
+
+func server(r *Router) error {
+	http.HandleFunc("/chat", chatHandler(r))
+
+	port := ":9090"
+	fmt.Printf("Server is running at http://localhost%s/\n", port)
+	return http.ListenAndServe(port, nil)
+}
+
 func description(desc *string) string {
 	if desc != nil {
 		return *desc
@@ -160,6 +217,13 @@ func main() {
 		panic(err)
 	}
 
+	go func() {
+		var err = server(router)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
 	fmt.Println("Ask me anything:")
 	for {
 		fmt.Print("> ")
@@ -178,27 +242,34 @@ func main() {
 			panic(err)
 		}
 
-		var output string
+		var output = router.handleText(text)
 
-		switch {
-		case text == "":
-			continue
+		fmt.Print(output)
+	}
+}
 
-		case strings.HasPrefix(text, "cmd::"):
-			output = router.command(text)
+func (r *Router) handleText(text string) string {
+	var output string
 
-		default:
-			output, err = router.loop(text)
-			if err != nil {
-				output = fmt.Sprintf("!!! %s !!!", err)
-			}
+	switch {
+	case text == "":
+		return ""
 
-			// TODO: or better yet make a struct that unmarshals this into a 'think'/'thought' field
-			// and allow that to be printable with a command
+	case strings.HasPrefix(text, "cmd::"):
+		output = r.command(text)
+
+	default:
+		var err error
+		output, err = r.loop(text)
+		if err != nil {
+			output = fmt.Sprintf("!!! %s !!!", err)
 		}
 
-		fmt.Printf("\n%s\n", output)
+		// TODO: or better yet make a struct that unmarshals this into a 'think'/'thought' field
+		// and allow that to be printable with a command
 	}
+
+	return fmt.Sprintf("%s\n", output)
 }
 
 func trimOutput(output string) string {
