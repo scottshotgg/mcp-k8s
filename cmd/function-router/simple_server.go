@@ -60,7 +60,6 @@ func server(r *Router) error {
 	http.HandleFunc("/chat", chatHandler(r))
 
 	port := ":9090"
-	fmt.Printf("Server is running at http://localhost%s/\n", port)
 	return http.ListenAndServe(port, nil)
 }
 
