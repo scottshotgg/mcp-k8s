@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	mcp_golang "github.com/metoro-io/mcp-golang"
 	corev1 "k8s.io/api/core/v1"
@@ -13,6 +14,8 @@ type TopNodesArgs struct{}
 
 // kubectl get --raw /apis/metrics.k8s.io/v1beta1/nodes
 func (k *KubernetesTool) TopNodes(ctx context.Context, args TopNodesArgs) (*mcp_golang.ToolResponse, error) {
+	fmt.Println("top_nodes")
+
 	var (
 		opts metav1.ListOptions
 
@@ -41,6 +44,4 @@ func (k *KubernetesTool) TopNodes(ctx context.Context, args TopNodesArgs) (*mcp_
 			},
 		},
 	}, nil
-
-	// return fmt.Sprintf("Your Kubernetes namespace (%s) has been created", name), nil
 }

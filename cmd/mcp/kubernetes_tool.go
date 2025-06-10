@@ -2,11 +2,12 @@ package main
 
 import (
 	"flag"
-	"log"
 	"path/filepath"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -16,40 +17,52 @@ import (
 )
 
 type KubernetesTool struct {
-	client        *kubernetes.Clientset
-	restClient    *rest.RESTClient
-	metricsClient *versioned.Clientset
+	client          *kubernetes.Clientset
+	restClient      *rest.RESTClient
+	metricsClient   *versioned.Clientset
+	dynClient       *dynamic.DynamicClient
+	discoveryClient *discovery.DiscoveryClient
 }
 
-func NewKubernetesTool() *KubernetesTool {
-	var kubeconfig *string
-	home := homedir.HomeDir()
+func NewKubernetesTool() (*KubernetesTool, error) {
+	var (
+		kubeconfig *string
+		home       = homedir.HomeDir()
+	)
+
 	if home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	} else {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
+
 	flag.Parse()
 
 	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	var config, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
 		panic(err.Error())
 	}
 
+	config.QPS = 1000
+	config.Burst = 2000
+
+	var k KubernetesTool
+
 	// Create the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	k.client, err = kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 
 	// Create a metrics client
-	metricsClient, err := versioned.NewForConfig(config)
+	k.metricsClient, err = versioned.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("Failed to create metrics client: %v", err)
+		return nil, err
 	}
 
-	configClone := *config // copy the original
+	// copy the original
+	var configClone = *config
 	configClone.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{
 		CodecFactory: scheme.Codecs,
 	}
@@ -60,17 +73,22 @@ func NewKubernetesTool() *KubernetesTool {
 	}
 
 	// Create a REST client
-	restClient, err := rest.RESTClientFor(&configClone)
+	k.restClient, err = rest.RESTClientFor(&configClone)
 	if err != nil {
-		log.Fatalf("Error creating REST client: %v", err)
+		return nil, err
 	}
 
-	return &KubernetesTool{
-		client:        clientset,
-		restClient:    restClient,
-		metricsClient: metricsClient,
+	// Set up dynamic client and discovery client
+	k.dynClient, err = dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
 	}
+
+	// Create a discovery client
+	k.discoveryClient, err = discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &k, nil
 }
-
-// Expose a deployment
-// Create a service

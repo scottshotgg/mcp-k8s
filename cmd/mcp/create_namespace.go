@@ -14,6 +14,8 @@ type CreateNamespaceArgs struct {
 }
 
 func (k *KubernetesTool) CreateNamespace(ctx context.Context, args CreateNamespaceArgs) (*mcp_golang.ToolResponse, error) {
+	fmt.Println("create_namespace")
+
 	var (
 		opts metav1.CreateOptions
 
@@ -43,6 +45,4 @@ func (k *KubernetesTool) CreateNamespace(ctx context.Context, args CreateNamespa
 			},
 		},
 	}, nil
-
-	// return fmt.Sprintf("Your Kubernetes namespace (%s) has been created", name), nil
 }

@@ -18,6 +18,8 @@ type DebugWorkloadArgs struct {
 }
 
 func (k *KubernetesTool) DebugWorkload(ctx context.Context, args DebugWorkloadArgs) (*mcp_golang.ToolResponse, error) {
+	fmt.Println("debug_workload")
+
 	var (
 	// opts corev1.PodLogOptions
 
@@ -86,17 +88,19 @@ func (k *KubernetesTool) DebugWorkload(ctx context.Context, args DebugWorkloadAr
 		break
 	}
 
-	logs, err := k.getLogs(ctx, pods[0], args.Namespace)
-	if err != nil {
-		if err != ErrWaitingToStart {
-			return nil, err
+	if len(pods) > 0 {
+		logs, err := k.getLogs(ctx, pods[0], args.Namespace)
+		if err != nil {
+			if err != ErrWaitingToStart {
+				return nil, err
+			}
+
+			// TODO: do something here to explain to the LLM that we don't have any logs
 		}
 
-		// TODO: do something here to explain to the LLM that we don't have any logs
-	}
-
-	if logs != nil {
-		fmt.Println("logs:", logs)
+		if logs != nil {
+			fmt.Println("logs:", logs)
+		}
 	}
 
 	// 	// Copy logs to stdout (or process however you want)
@@ -122,8 +126,6 @@ func (k *KubernetesTool) DebugWorkload(ctx context.Context, args DebugWorkloadAr
 			},
 		},
 	}, nil
-
-	// return fmt.Sprintf("Your Kubernetes namespace (%s) has been created", name), nil
 }
 
 type Event struct {

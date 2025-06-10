@@ -14,10 +14,12 @@ type ListDeploymentsArgs struct {
 }
 
 func (k *KubernetesTool) ListDeployments(ctx context.Context, args ListDeploymentsArgs) (*mcp_golang.ToolResponse, error) {
+	fmt.Println("list_deployments")
+
 	var (
 		opts metav1.ListOptions
 
-		deployments, err = k.client.
+		deploymentsList, err = k.client.
 					AppsV1().
 					Deployments(args.Namespace).
 					List(ctx, opts)
@@ -27,9 +29,9 @@ func (k *KubernetesTool) ListDeployments(ctx context.Context, args ListDeploymen
 		return nil, err
 	}
 
-	var ds []string
-	for _, d := range deployments.Items {
-		ds = append(ds, d.Name)
+	var deployments []string
+	for _, deployment := range deploymentsList.Items {
+		deployments = append(deployments, deployment.Name)
 	}
 
 	return &mcp_golang.ToolResponse{
@@ -37,11 +39,9 @@ func (k *KubernetesTool) ListDeployments(ctx context.Context, args ListDeploymen
 			{
 				Type: mcp_golang.ContentTypeText,
 				TextContent: &mcp_golang.TextContent{
-					Text: fmt.Sprintf("The Kubernetes deployments in the %s namespace are: %s", args.Namespace, strings.Join(ds, ", ")),
+					Text: fmt.Sprintf("The Kubernetes deployments in the %s namespace are: %s", args.Namespace, strings.Join(deployments, ", ")),
 				},
 			},
 		},
 	}, nil
-
-	// return fmt.Sprintf("Your Kubernetes namespace (%s) has been created", name), nil
 }

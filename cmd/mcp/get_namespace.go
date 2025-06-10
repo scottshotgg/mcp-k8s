@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	mcp_golang "github.com/metoro-io/mcp-golang"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,13 +13,15 @@ type GetNamespaceArgs struct {
 }
 
 func (k *KubernetesTool) GetNamespace(ctx context.Context, args GetNamespaceArgs) (*mcp_golang.ToolResponse, error) {
+	fmt.Println("get_namespace")
+
 	var (
 		opts metav1.GetOptions
 
-		ns, err = k.client.
-			CoreV1().
-			Namespaces().
-			Get(ctx, args.Name, opts)
+		namespace, err = k.client.
+				CoreV1().
+				Namespaces().
+				Get(ctx, args.Name, opts)
 	)
 
 	if err != nil {
@@ -30,11 +33,9 @@ func (k *KubernetesTool) GetNamespace(ctx context.Context, args GetNamespaceArgs
 			{
 				Type: mcp_golang.ContentTypeText,
 				TextContent: &mcp_golang.TextContent{
-					Text: ns.String(),
+					Text: namespace.String(),
 				},
 			},
 		},
 	}, nil
-
-	// return fmt.Sprintf("Your Kubernetes namespace (%s) has been created", name), nil
 }

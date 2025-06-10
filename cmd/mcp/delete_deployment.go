@@ -14,6 +14,8 @@ type DeleteDeploymentArgs struct {
 }
 
 func (k *KubernetesTool) DeleteDeployment(ctx context.Context, args DeleteDeploymentArgs) (*mcp_golang.ToolResponse, error) {
+	fmt.Println("delete_deployment")
+
 	var (
 		opts metav1.DeleteOptions
 
@@ -37,6 +39,4 @@ func (k *KubernetesTool) DeleteDeployment(ctx context.Context, args DeleteDeploy
 			},
 		},
 	}, nil
-
-	// return fmt.Sprintf("Your Kubernetes deployment (%s) has been created", name), nil
 }

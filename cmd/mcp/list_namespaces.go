@@ -12,22 +12,24 @@ import (
 type ListNamespaceArgs struct{}
 
 func (k *KubernetesTool) ListNamespaces(ctx context.Context, _ CreateNamespaceArgs) (*mcp_golang.ToolResponse, error) {
+	fmt.Println("list_namespaces")
+
 	var (
 		opts metav1.ListOptions
 
-		namespaces, err = k.client.
-				CoreV1().
-				Namespaces().
-				List(ctx, opts)
+		namespacesList, err = k.client.
+					CoreV1().
+					Namespaces().
+					List(ctx, opts)
 	)
 
 	if err != nil {
 		return nil, err
 	}
 
-	var nss []string
-	for _, ns := range namespaces.Items {
-		nss = append(nss, ns.Name)
+	var namespaces []string
+	for _, namespace := range namespacesList.Items {
+		namespaces = append(namespaces, namespace.Name)
 	}
 
 	return &mcp_golang.ToolResponse{
@@ -35,11 +37,9 @@ func (k *KubernetesTool) ListNamespaces(ctx context.Context, _ CreateNamespaceAr
 			{
 				Type: mcp_golang.ContentTypeText,
 				TextContent: &mcp_golang.TextContent{
-					Text: fmt.Sprintf("The currently accessible Kubernetes namespaces are: %s", strings.Join(nss, ", ")),
+					Text: fmt.Sprintf("The currently accessible Kubernetes namespaces are: %s", strings.Join(namespaces, ", ")),
 				},
 			},
 		},
 	}, nil
-
-	// return fmt.Sprintf("Your Kubernetes namespace (%s) has been created", name), nil
 }

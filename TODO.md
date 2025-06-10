@@ -31,4 +31,11 @@
 
 - Maybe look at implementing other cases of media later on
 
-- Give the LLM a way to retrieve and modify the YAML to debug a pod issue
+x Give the LLM a way to retrieve and modify the YAML to debug a pod issue
+
+- We need to give a way to query the Kubernetes cluster so that it can figure out what type of workload it is and what namespace it is in
+  - LOAD INITIAL STATE
+
+- Make run_kubectl_command
+
+- Make a way for the LLM to debug the error response for a handler given the code

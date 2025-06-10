@@ -96,7 +96,7 @@ func NewRouter(model, ollamaURI, kubeMCPURI string) (*Router, error) {
 	var (
 		prompt = Message{
 			Role:    "system",
-			Content: "You are a helpful assistant. Never call tools unless absolutely necessary. Respond in plain language when possible. Be brief with your responses when using tools.",
+			Content: promptText,
 		}
 
 		router = Router{
@@ -122,6 +122,16 @@ func NewRouter(model, ollamaURI, kubeMCPURI string) (*Router, error) {
 	// if err != nil {
 	// 	return nil, err
 	// }
+
+	// var msg = `
+	// 	Here is a JSON object that contains all of the entities in the cluster that should form your world view of the Kubernetes cluster.
+	// 	You should use this information when running tools.
+	// `
+
+	// router.messages = append(router.messages, &Message{
+	// 	Role:    "system",
+	// 	Content: fmt.Sprintf("%s\n%s", msg, router.listClusterState()),
+	// })
 
 	return &router, nil
 }
@@ -208,6 +218,8 @@ func (r *Router) handleText(text string) string {
 }
 
 func trimOutput(output string) string {
+	// return output
+
 	var split = strings.Split(output, "</think>")
 	switch len(split) {
 	case 2:
@@ -354,7 +366,89 @@ func (r *Router) loop(text string) (string, error) {
 	// TODO: tie this into the request and stuff as well
 	var ctx = context.Background()
 
-	for k, toolCall := range res.Message.ToolCalls {
+	err = r.makeToolCalls(ctx, res.Message.ToolCalls)
+	if err != nil {
+		return "", err
+	}
+
+	var llmResp = LLMRequest{
+		Model:    r.model,
+		Stream:   stream,
+		Messages: r.messages,
+	}
+
+	bb, err := json.Marshal(llmResp)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err = http.Post(r.ollamaChatURL, "application/json", bytes.NewBuffer(bb))
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+
+	var res2 LLMResponse
+	err = json.NewDecoder(resp.Body).Decode(&res2)
+	if err != nil {
+		return "", err
+	}
+
+	var trimmedOutput = trimOutput(res2.Message.Content)
+	fmt.Println(trimmedOutput)
+
+	if !json.Valid([]byte(trimmedOutput)) {
+		return trimmedOutput, nil
+	}
+
+	var tcMsg toolCallJSONMsg
+
+	err = json.Unmarshal([]byte(trimmedOutput), &tcMsg)
+	if err != nil {
+		return "", err
+	}
+
+	err = r.makeToolCalls(ctx, tcMsg.ToolCalls)
+	if err != nil {
+		return "", err
+	}
+
+	llmResp = LLMRequest{
+		Model:    r.model,
+		Stream:   stream,
+		Messages: r.messages,
+	}
+
+	bb, err = json.Marshal(llmResp)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err = http.Post(r.ollamaChatURL, "application/json", bytes.NewBuffer(bb))
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+
+	err = json.NewDecoder(resp.Body).Decode(&res2)
+	if err != nil {
+		return "", err
+	}
+
+	trimmedOutput = trimOutput(res2.Message.Content)
+	fmt.Println(trimmedOutput)
+
+	return trimmedOutput, nil
+}
+
+type toolCallJSONMsg struct {
+	ToolCalls []*ToolCalls `json:"toolCalls"`
+}
+
+func (r *Router) makeToolCalls(ctx context.Context, toolcalls []*ToolCalls) error {
+	for k, toolCall := range toolcalls {
 		// fmt.Println("Calling function:")
 		// fmt.Println("Name:", toolCall.Function.Name)
 		// fmt.Println("Arguments:", toolCall.Function.Arguments)
@@ -370,7 +464,7 @@ func (r *Router) loop(text string) (string, error) {
 
 		toolRes, err := r.client.CallTool(ctx, toolCall.Function.Name, toolCall.Function.Arguments)
 		if err != nil {
-			return "", err
+			return err
 		}
 
 		if len(toolRes.Content) == 0 {
@@ -401,44 +495,21 @@ func (r *Router) loop(text string) (string, error) {
 
 			// TODO: handle these other types
 			case mcp_golang.ContentTypeImage:
-				return "", errors.New("Images type content is not supported")
+				return errors.New("Images type content is not supported")
 
 			case mcp_golang.ContentTypeEmbeddedResource:
-				return "", errors.New("EmbeddedResource type content is not supported")
+				return errors.New("EmbeddedResource type content is not supported")
 
 			default:
-				return "", fmt.Errorf("default content type somehow?: %+v\n", content)
+				return fmt.Errorf("default content type somehow?: %+v\n", content)
 			}
 		}
 
 		// TODO: we are going to need to measure the context length at some point
 		// and then we can start to either trim this or maybe summarize it in the background
+		r.fetchTools(ctx)
 		r.messages = append(r.messages, toolOutputs...)
 	}
 
-	var llmResp = LLMRequest{
-		Model:    r.model,
-		Stream:   stream,
-		Messages: r.messages,
-	}
-
-	bb, err := json.Marshal(llmResp)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err = http.Post(r.ollamaChatURL, "application/json", bytes.NewBuffer(bb))
-	if err != nil {
-		return "", err
-	}
-
-	defer resp.Body.Close()
-
-	var res2 LLMResponse
-	err = json.NewDecoder(resp.Body).Decode(&res2)
-	if err != nil {
-		return "", err
-	}
-
-	return trimOutput(res2.Message.Content), nil
+	return nil
 }

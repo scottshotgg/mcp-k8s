@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	mcp_golang "github.com/metoro-io/mcp-golang"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,6 +14,8 @@ type GetDeploymentArgs struct {
 }
 
 func (k *KubernetesTool) GetDeployment(ctx context.Context, args GetDeploymentArgs) (*mcp_golang.ToolResponse, error) {
+	fmt.Println("get_deployment")
+
 	var (
 		opts metav1.GetOptions
 
@@ -36,6 +39,4 @@ func (k *KubernetesTool) GetDeployment(ctx context.Context, args GetDeploymentAr
 			},
 		},
 	}, nil
-
-	// return fmt.Sprintf("Your Kubernetes namespace (%s) has been created", name), nil
 }

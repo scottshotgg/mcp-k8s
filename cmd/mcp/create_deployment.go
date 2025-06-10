@@ -17,6 +17,8 @@ type CreateDeploymentArgs struct {
 }
 
 func (k *KubernetesTool) CreateDeployment(ctx context.Context, args CreateDeploymentArgs) (*mcp_golang.ToolResponse, error) {
+	fmt.Println("create_deployment")
+
 	var (
 		opts metav1.CreateOptions
 
@@ -72,6 +74,4 @@ func (k *KubernetesTool) CreateDeployment(ctx context.Context, args CreateDeploy
 			},
 		},
 	}, nil
-
-	// return fmt.Sprintf("Your Kubernetes deployment (%s) has been created", name), nil
 }

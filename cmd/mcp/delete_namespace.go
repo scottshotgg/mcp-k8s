@@ -13,6 +13,8 @@ type DeleteNamespaceArgs struct {
 }
 
 func (k *KubernetesTool) DeleteNamespace(ctx context.Context, args DeleteNamespaceArgs) (*mcp_golang.ToolResponse, error) {
+	fmt.Println("delete_namespace")
+
 	var (
 		opts metav1.DeleteOptions
 
@@ -36,6 +38,4 @@ func (k *KubernetesTool) DeleteNamespace(ctx context.Context, args DeleteNamespa
 			},
 		},
 	}, nil
-
-	// return fmt.Sprintf("Your Kubernetes namespace (%s) has been created", name), nil
 }
