@@ -1,16 +1,16 @@
 # TODO
 
 - More functionality
-  - add getting a deployment
-  - Listing pods
+  x add getting a deployment
+  x Listing pods
   - exposing a deployment / creating a service
   - autoscaling a deployment / creating an hpa
   - creating a job
   - running a job
-  - listing nodes
+  x listing nodes
   - getting a node
   - top pods
-  - top nodes
+  x top nodes
 
 - Config
   - json file
@@ -30,3 +30,5 @@
 - Clean up the repo structure
 
 - Maybe look at implementing other cases of media later on
+
+- Give the LLM a way to retrieve and modify the YAML to debug a pod issue

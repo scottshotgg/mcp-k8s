@@ -77,6 +77,16 @@ func main() {
 		panic(err)
 	}
 
+	// --- Debugging commands ---
+
+	// Register list_deployments
+	err = server.RegisterTool("debug_workload", "Debug a failing or crashing workload (pod, container) in Kubernetes", k.DebugWorkload)
+	if err != nil {
+		panic(err)
+	}
+
+	// --- Resources ---
+
 	// Register a resource
 	err = server.RegisterResource("test://resource", "Resource Name", "This is a test resource", "application/json", func() (*mcp_golang.ResourceResponse, error) {
 		// Define the resource content

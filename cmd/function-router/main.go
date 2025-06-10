@@ -96,7 +96,7 @@ func NewRouter(model, ollamaURI, kubeMCPURI string) (*Router, error) {
 	var (
 		prompt = Message{
 			Role:    "system",
-			Content: "You are a helpful assistant. Never call tools unless absolutely necessary. Respond in plain language when possible.",
+			Content: "You are a helpful assistant. Never call tools unless absolutely necessary. Respond in plain language when possible. Be brief with your responses when using tools.",
 		}
 
 		router = Router{
