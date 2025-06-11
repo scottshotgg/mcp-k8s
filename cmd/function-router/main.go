@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	mcp_golang "github.com/metoro-io/mcp-golang"
 	mcp_golang_http "github.com/metoro-io/mcp-golang/transport/http"
@@ -446,6 +447,14 @@ func (r *Router) makeToolCalls(ctx context.Context, toolcalls []*ToolCalls) erro
 }
 
 func (r *Router) toolCallLoop(ctx context.Context, res *LLMResponse) (*LLMResponse, error) {
+	fmt.Println("res.PromptEvalCount:", res.PromptEvalCount)
+	fmt.Println("res.PromptEvalDuration:", res.PromptEvalDuration)
+	fmt.Println("res.EvalCount:", res.EvalCount)
+	fmt.Println("res.EvalDuration:", res.EvalDuration)
+
+	fmt.Println("prompt_eval T/s:", float64(res.PromptEvalCount)/time.Duration(res.PromptEvalDuration).Seconds())
+	fmt.Println("eval T/s:", float64(res.EvalCount)/time.Duration(res.EvalDuration).Seconds())
+
 	// fmt.Println("---")
 
 	// fmt.Println("res.Message.Content:", res.Message.Content)
