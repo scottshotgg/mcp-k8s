@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-tester
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-tester
+  template:
+    metadata:
+      labels:
+        app: nginx-tester
+    spec:
+      containers:
+      - command:
+        - hi
+        image: nginx:latest
+        imagePullPolicy: Always
+        name: nginx 
