@@ -219,8 +219,6 @@ func (r *Router) handleText(text string) string {
 }
 
 func trimOutput(output string) string {
-	// return output
-
 	var split = strings.Split(output, "</think>")
 	switch len(split) {
 	case 2:
@@ -338,7 +336,7 @@ func (r *Router) loop(text string) (string, error) {
 
 	// fmt.Println("bb:", string(bb))
 
-	var res LLMResponse
+	var res *LLMResponse
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	// err = json.Unmarshal(bb, &res)
 	if err != nil {
@@ -356,16 +354,18 @@ func (r *Router) loop(text string) (string, error) {
 		return "", fmt.Errorf("no message sent back for some reason: %+v", res)
 	}
 
-	res.Message.Content = trimOutput(res.Message.Content)
-	r.messages = append(r.messages, res.Message)
+	if len(res.Message.Content) != 0 {
+		res.Message.Content = trimOutput(res.Message.Content)
+		r.messages = append(r.messages, res.Message)
+	}
 
 	var ctx = context.Background()
-	err = r.toolCallLoop(ctx, res)
+	res, err = r.toolCallLoop(ctx, res)
 	if err != nil {
 		return "", err
 	}
 
-	return res.Message.Content, nil
+	return trimOutput(res.Message.Content), nil
 }
 
 type toolCallJSONMsg struct {
@@ -373,7 +373,7 @@ type toolCallJSONMsg struct {
 }
 
 func (r *Router) makeToolCalls(ctx context.Context, toolcalls []*ToolCalls) error {
-	fmt.Println("len(toolscalls):", len(toolcalls))
+	// fmt.Println("len(toolscalls):", len(toolcalls))
 
 	for k, toolCall := range toolcalls {
 		// fmt.Println("Calling function:")
@@ -412,7 +412,7 @@ func (r *Router) makeToolCalls(ctx context.Context, toolcalls []*ToolCalls) erro
 			toolCall.ID = strconv.Itoa(k)
 		}
 
-		fmt.Println("toolCall.ID:", toolCall.ID)
+		// fmt.Println("toolCall.ID:", toolCall.ID)
 
 		for _, content := range toolRes.Content {
 			switch content.Type {
@@ -445,15 +445,17 @@ func (r *Router) makeToolCalls(ctx context.Context, toolcalls []*ToolCalls) erro
 	return nil
 }
 
-func (r *Router) toolCallLoop(ctx context.Context, res LLMResponse) error {
+func (r *Router) toolCallLoop(ctx context.Context, res *LLMResponse) (*LLMResponse, error) {
+	// fmt.Println("---")
+
+	// fmt.Println("res.Message.Content:", res.Message.Content)
+
 	var trimmedContent = trimOutput(res.Message.Content)
 
-	fmt.Println("len(res.Message.ToolCalls) != 0:", len(res.Message.ToolCalls) != 0)
-	fmt.Println("json.Valid([]byte(trimmedOutput)):", json.Valid([]byte(trimmedContent)))
-	fmt.Println("hasValidXML(trimmedContent):", hasValidXML(trimmedContent))
-	fmt.Println("toolCallLoop:", trimmedContent)
-
-	fmt.Println("---")
+	// fmt.Println("len(res.Message.ToolCalls) != 0:", len(res.Message.ToolCalls) != 0)
+	// fmt.Println("json.Valid([]byte(trimmedOutput)):", json.Valid([]byte(trimmedContent)))
+	// fmt.Println("hasValidXML(trimmedContent):", hasValidXML(trimmedContent))
+	// fmt.Println("toolCallLoop:", trimmedContent)
 
 	// Check for the native way of making tool calls
 
@@ -474,11 +476,11 @@ func (r *Router) toolCallLoop(ctx context.Context, res LLMResponse) error {
 
 	default:
 		// TODO: might be useful to have an error here but this really isn't an error case
-		return nil
+		return res, nil
 	}
 
 	if err != nil {
-		return err
+		return res, err
 	}
 
 	var llmResp = LLMRequest{
@@ -489,12 +491,12 @@ func (r *Router) toolCallLoop(ctx context.Context, res LLMResponse) error {
 
 	bb, err := json.Marshal(llmResp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resp, err := http.Post(r.ollamaChatURL, "application/json", bytes.NewBuffer(bb))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer resp.Body.Close()
@@ -502,10 +504,10 @@ func (r *Router) toolCallLoop(ctx context.Context, res LLMResponse) error {
 	var res2 LLMResponse
 	err = json.NewDecoder(resp.Body).Decode(&res2)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return r.toolCallLoop(ctx, res2)
+	return r.toolCallLoop(ctx, &res2)
 }
 
 func hasValidXML(content string) bool {
@@ -524,7 +526,7 @@ func (r *Router) handleJSON(ctx context.Context, trimmedContent string) error {
 
 	if len(tcMsg.ToolCalls) == 0 {
 		trimmedContent = fmt.Sprintf(`{"toolCalls": [{ "id":"", "type":"function", "function":%s }]}`, trimmedContent)
-		fmt.Println("reconstructed JSON:", trimmedContent)
+		// fmt.Println("reconstructed JSON:", trimmedContent)
 
 		err = json.Unmarshal([]byte(trimmedContent), &tcMsg)
 		if err != nil {
@@ -532,7 +534,7 @@ func (r *Router) handleJSON(ctx context.Context, trimmedContent string) error {
 		}
 	}
 
-	fmt.Println("handleJSON: tcMsg.ToolCalls:", tcMsg.ToolCalls)
+	// fmt.Println("handleJSON: tcMsg.ToolCalls:", tcMsg.ToolCalls)
 
 	// TODO: we might not want to always append the messages automatically for the toolCall loop
 	err = r.makeToolCalls(ctx, tcMsg.ToolCalls)
@@ -550,11 +552,12 @@ func (r *Router) handleXML(ctx context.Context, trimmedContent string) error {
 	)
 
 	if err != nil {
+		fmt.Println("trimmedContent:", trimmedContent)
 		return err
 	}
 
-	fmt.Println("trimmedContent:", trimmedContent)
-	fmt.Println("tcMsg.Content:", tcMsg.Content)
+	// fmt.Println("trimmedContent:", trimmedContent)
+	// fmt.Println("tcMsg.Content:", tcMsg.Content)
 
 	// For some reason when it uses XML it does not construct the JSON the same as it does when it uses actual JSON
 	err = r.handleJSON(ctx, tcMsg.Content)

@@ -10,6 +10,11 @@ You have access to the following tool:
     - kubectl rollout restart deployment nginx
     - kubectl patch ...
 
+You CANNOT use the run_kubectl_command to do editing such as:
+    - kubectl edit ...
+
+When running the tool, please keep the user in the loop on what you are doing and ensure that they are aware of what you are running
+
 Your job is to:
 - Inspect the cluster state using run_kubectl_command
 - Chain multiple tool calls if needed to investigate and fix problems
@@ -45,12 +50,6 @@ Tool calls should be made like this:
     }
   ]
 }
-
-*NEVER* return text wrapped in <tool_call> xml tags such as below:
-<tool_call>
-{"name": "run_kubectl_command", "arguments": {"command":"kubectl describe deployment nginx-deployment -n default"}}
-</tool_call>
-
 
 After receiving a tool response, continue reasoning and make another tool call if needed. Your goal is to solve Kubernetes problems entirely through tool usage.`
 
