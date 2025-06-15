@@ -1,0 +1,5 @@
+# Ignore all binaries produced
+bin/*
+
+# Allow gitkeep files
+!.gitkeep

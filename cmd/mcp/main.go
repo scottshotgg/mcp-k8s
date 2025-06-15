@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 
+	kt "git.6740.io/scottshotgg/mcp-k8s/pkg/kubernetes_tool"
 	mcp_golang "github.com/metoro-io/mcp-golang"
 	mcp_golang_http "github.com/metoro-io/mcp-golang/transport/http"
 )
 
 func main() {
-	var k, err = NewKubernetesTool()
+	var k, err = kt.NewKubernetesTool()
 	if err != nil {
 		panic(err)
 	}
